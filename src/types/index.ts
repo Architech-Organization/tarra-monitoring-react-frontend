@@ -287,13 +287,6 @@ export interface SystemStatus {
   last_updated: string;
 }
 
-export interface WebSocketMessage {
-  type: 'sensor_data' | 'alert' | 'system_status' | 'user_action';
-  payload: any;
-  timestamp: string;
-  sender?: string;
-}
-
 // API Error Types
 export interface ApiError {
   code: string;
