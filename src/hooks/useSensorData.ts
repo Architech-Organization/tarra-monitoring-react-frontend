@@ -126,48 +126,6 @@ export const useAnalyticsData = (hoursBack: number = 24) => {
   });
 };
 
-// Hook to start live stream
-export const useStartLiveStream = () => {
-  const { getApiClient } = useAuthenticatedApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (): Promise<ApiResponse> => {
-      const client = await getApiClient();
-      const response = await client.post('/api/v1/sensors/live-stream/start');
-      return apiUtils.validateResponse<ApiResponse>(response);
-    },
-    onSuccess: () => {
-      // Invalidate sensor data queries to refresh with live data
-      queryClient.invalidateQueries({ queryKey: sensorQueryKeys.all });
-    },
-    onError: (error: any) => {
-      console.error('Failed to start live stream:', apiUtils.handleApiError(error));
-    },
-  });
-};
-
-// Hook to stop live stream
-export const useStopLiveStream = () => {
-  const { getApiClient } = useAuthenticatedApi();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (): Promise<ApiResponse> => {
-      const client = await getApiClient();
-      const response = await client.post('/api/v1/sensors/live-stream/stop');
-      return apiUtils.validateResponse<ApiResponse>(response);
-    },
-    onSuccess: () => {
-      // Invalidate sensor data queries
-      queryClient.invalidateQueries({ queryKey: sensorQueryKeys.all });
-    },
-    onError: (error: any) => {
-      console.error('Failed to stop live stream:', apiUtils.handleApiError(error));
-    },
-  });
-};
-
 // Combined hook for dashboard data (gets multiple data sources)
 export const useDashboardData = () => {
   const summaryQuery = useSensorSummary();
@@ -186,60 +144,5 @@ export const useDashboardData = () => {
       analyticsQuery.refetch();
       locationsQuery.refetch();
     },
-  };
-};
-
-// WebSocket hook for real-time data
-export const useWebSocketData = (enabled: boolean = true) => {
-  const queryClient = useQueryClient();
-  const [connectionStatus, setConnectionStatus] = React.useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
-  const [lastMessage, setLastMessage] = React.useState<any>(null);
-
-  React.useEffect(() => {
-    if (!enabled) return;
-
-    const wsUrl = `${import.meta.env.VITE_API_BASE_URL?.replace('http', 'ws') || 'ws://localhost:8000'}/ws`;
-    const ws = new WebSocket(wsUrl);
-
-    setConnectionStatus('connecting');
-
-    ws.onopen = () => {
-      setConnectionStatus('connected');
-      console.log('WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setLastMessage(data);
-        
-        // Invalidate relevant queries when new data arrives
-        if (data.type === 'sensor_data') {
-          queryClient.invalidateQueries({ queryKey: sensorQueryKeys.summary() });
-        }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-      }
-    };
-
-    ws.onclose = () => {
-      setConnectionStatus('disconnected');
-      console.log('WebSocket disconnected');
-    };
-
-    ws.onerror = (error) => {
-      setConnectionStatus('disconnected');
-      console.error('WebSocket error:', error);
-    };
-
-    return () => {
-      ws.close();
-    };
-  }, [enabled, queryClient]);
-
-  return {
-    connectionStatus,
-    lastMessage,
-    isConnected: connectionStatus === 'connected',
   };
 };
