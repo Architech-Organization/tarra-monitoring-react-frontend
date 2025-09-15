@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useIsAuthenticated } from '@azure/msal-react';
 import { Helmet } from 'react-helmet-async';
 import { Toaster } from 'react-hot-toast';
@@ -22,6 +22,7 @@ const UnauthorizedPage = React.lazy(() => import('./pages/UnauthorizedPage'));
 
 export const App: React.FC = () => {
   const isAuthenticated = useIsAuthenticated();
+  const location = useLocation();
 
   return (
     <>
@@ -74,10 +75,10 @@ export const App: React.FC = () => {
             <Route
               path="/login"
               element={
-                !isAuthenticated ? (
-                  <LoginPage />
-                ) : (
+                isAuthenticated ? (
                   <Navigate to="/dashboard" replace />
+                ) : (
+                  <LoginPage />
                 )
               }
             />
@@ -92,8 +93,17 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             >
-              {/* Default redirect to dashboard */}
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              {/* Default redirect to dashboard for authenticated users */}
+              <Route 
+                index 
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/dashboard" replace />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                } 
+              />
               
               {/* Dashboard */}
               <Route path="dashboard" element={<Dashboard />} />
