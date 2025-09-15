@@ -9,6 +9,7 @@ import { Layout } from './components/Layout';
 import { LoadingScreen } from './components/LoadingScreen';
 import { AuthWrapper } from './components/AuthWrapper';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthDebugger } from './components/AuthDebugger';
 
 // Lazy load pages for better performance
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -26,6 +27,9 @@ export const App: React.FC = () => {
 
   return (
     <>
+      {/* Debug component - only shows in development */}
+      <AuthDebugger enabled={import.meta.env.DEV} />
+      
       {/* Global SEO and Security Headers */}
       <Helmet
         titleTemplate="%s | Tarra Monitoring System"
