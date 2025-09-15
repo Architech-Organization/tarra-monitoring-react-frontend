@@ -29,13 +29,11 @@ import {
   LocationOn as LocationIcon,
   Timeline as TimelineIcon,
   Visibility as VisibilityIcon,
-  PlayArrow as PlayIcon,
-  Stop as StopIcon,
 } from '@mui/icons-material';
 import { Helmet } from 'react-helmet-async';
 import { format } from 'date-fns';
 
-import { useDashboardData, useStartLiveStream, useStopLiveStream, useWebSocketData } from '../hooks/useSensorData';
+import { useDashboardData } from '../hooks/useSensorData';
 import { SensorDataSummary, AlarmStatus, Status } from '../types';
 import { SensorOverviewChart } from '../components/charts/SensorOverviewChart';
 import { VibrationTrendChart } from '../components/charts/VibrationTrendChart';
@@ -49,26 +47,10 @@ const Dashboard: React.FC = () => {
 
   // Fetch dashboard data
   const { summary, analytics, locations, isLoading, isError, error, refetch } = useDashboardData();
-  
-  // Live stream controls
-  const startLiveStream = useStartLiveStream();
-  const stopLiveStream = useStopLiveStream();
-  
-  // WebSocket connection for real-time data
-  const { connectionStatus, isConnected } = useWebSocketData(true);
 
   // Handle refresh
   const handleRefresh = () => {
     refetch();
-  };
-
-  // Handle live stream toggle
-  const handleLiveStreamToggle = () => {
-    if (isConnected) {
-      stopLiveStream.mutate();
-    } else {
-      startLiveStream.mutate();
-    }
   };
 
   // Get status color and icon
@@ -133,7 +115,7 @@ const Dashboard: React.FC = () => {
     <>
       <Helmet>
         <title>Dashboard</title>
-        <meta name="description" content="Tarra monitoring system dashboard showing real-time sensor data and analytics" />
+        <meta name="description" content="Tarra monitoring system dashboard showing sensor data and analytics" />
       </Helmet>
       
       <Box sx={{ p: 3 }}>
@@ -144,35 +126,18 @@ const Dashboard: React.FC = () => {
           </Typography>
           
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            {/* WebSocket Status */}
-            <Tooltip title={`WebSocket: ${connectionStatus}`}>
+            {/* Auto-refresh indicator */}
+            <Tooltip title="Data refreshes automatically every minute">
               <Chip
-                icon={isConnected ? <CheckCircleIcon /> : <ErrorIcon />}
-                label={isConnected ? 'Live' : 'Disconnected'}
-                color={isConnected ? 'success' : 'error'}
+                icon={<RefreshIcon />}
+                label="Auto-refresh"
+                color="info"
                 variant="outlined"
                 size="small"
               />
             </Tooltip>
 
-            {/* Live Stream Control */}
-            <Tooltip title={isConnected ? 'Stop Live Stream' : 'Start Live Stream'}>
-              <IconButton
-                onClick={handleLiveStreamToggle}
-                disabled={startLiveStream.isPending || stopLiveStream.isPending}
-                color={isConnected ? 'error' : 'primary'}
-              >
-                {startLiveStream.isPending || stopLiveStream.isPending ? (
-                  <CircularProgress size={20} />
-                ) : isConnected ? (
-                  <StopIcon />
-                ) : (
-                  <PlayIcon />
-                )}
-              </IconButton>
-            </Tooltip>
-
-            {/* Refresh Button */}
+            {/* Manual Refresh Button */}
             <Tooltip title="Refresh Data">
               <IconButton onClick={handleRefresh} disabled={isLoading}>
                 {isLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
@@ -418,7 +383,6 @@ const Dashboard: React.FC = () => {
           <DialogContent>
             {selectedSensor && summary.data && (
               <Box sx={{ pt: 1 }}>
-                {/* Sensor details content would go here */}
                 <Typography>
                   Detailed information for sensor {selectedSensor} would be displayed here.
                   This could include historical charts, configuration, and detailed metrics.
