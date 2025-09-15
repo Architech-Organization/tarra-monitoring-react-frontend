@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { useMsal } from '@azure/msal-react';
-import { apiTokenRequest, protectedResources } from '../config/authConfig';
+import { silentRequest, createApiTokenRequest } from '../config/authConfig';
 import { AccountInfo } from '@azure/msal-browser';
 
 // API Configuration
@@ -40,10 +40,12 @@ const createApiInstance = (token?: string): AxiosInstance => {
     },
   });
 
-  // Request interceptor for logging and token refresh
+  // Request interceptor for logging
   instance.interceptors.request.use(
     (config) => {
-      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      if (import.meta.env.DEV) {
+        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      }
       return config;
     },
     (error) => {
@@ -55,7 +57,9 @@ const createApiInstance = (token?: string): AxiosInstance => {
   // Response interceptor for error handling
   instance.interceptors.response.use(
     (response: AxiosResponse) => {
-      console.log(`API Response: ${response.status} ${response.config.url}`);
+      if (import.meta.env.DEV) {
+        console.log(`API Response: ${response.status} ${response.config.url}`);
+      }
       return response;
     },
     async (error) => {
@@ -69,8 +73,7 @@ const createApiInstance = (token?: string): AxiosInstance => {
 
       // Handle specific error cases
       if (response?.status === 401) {
-        console.error('Unauthorized - token may be expired');
-        // Token refresh should be handled by MSAL
+        console.error('Unauthorized - token may be expired or invalid');
       } else if (response?.status === 403) {
         console.error('Forbidden - insufficient permissions');
       } else if (response?.status >= 500) {
@@ -90,34 +93,40 @@ export const useAuthenticatedApi = () => {
   
   const getApiClient = async (): Promise<AxiosInstance> => {
     try {
+      // Get the active account
       const account: AccountInfo = accounts[0];
       
       if (!account) {
-        throw new Error('No authenticated account found');
+        console.warn('No authenticated account found, creating API client without token');
+        return createApiInstance();
       }
 
-      // Get access token silently
-      const response = await instance.acquireTokenSilent({
-        ...apiTokenRequest,
-        account,
-      });
-
-      return createApiInstance(response.accessToken);
-    } catch (error) {
-      console.error('Failed to get access token:', error);
+      // Try to get access token silently with basic scopes
+      const tokenRequest = createApiTokenRequest(account);
       
-      // Fallback: try to get token interactively
       try {
-        const response = await instance.acquireTokenPopup({
-          ...apiTokenRequest,
-          account: accounts[0],
-        });
-        
+        const response = await instance.acquireTokenSilent(tokenRequest);
+        console.log('Successfully acquired token silently');
         return createApiInstance(response.accessToken);
-      } catch (interactiveError) {
-        console.error('Interactive token acquisition failed:', interactiveError);
-        throw new Error('Failed to authenticate API requests');
+      } catch (silentError) {
+        console.warn('Silent token acquisition failed, trying interactive:', silentError);
+        
+        // Fallback: try to get token interactively
+        try {
+          const response = await instance.acquireTokenPopup(tokenRequest);
+          console.log('Successfully acquired token interactively');
+          return createApiInstance(response.accessToken);
+        } catch (interactiveError) {
+          console.error('Interactive token acquisition failed:', interactiveError);
+          console.log('Creating API client without token for now');
+          // For now, return client without token to test basic connectivity
+          return createApiInstance();
+        }
       }
+    } catch (error) {
+      console.error('Failed to get API client:', error);
+      // Return client without token to test basic API connectivity
+      return createApiInstance();
     }
   };
 
