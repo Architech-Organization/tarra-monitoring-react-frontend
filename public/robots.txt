@@ -1,0 +1,21 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /_next/
+Disallow: /private/
+Disallow: /.env
+Disallow: /config/
+Allow: /
+
+# Sitemap location
+Sitemap: https://your-domain.com/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1
+
+# Block specific paths that shouldn't be indexed
+Disallow: /*?*
+Disallow: /search?
+Disallow: /login
+Disallow: /logout
+Disallow: /oauth/
