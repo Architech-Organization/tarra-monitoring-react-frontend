@@ -11,14 +11,14 @@ if (!clientId || !tenantId) {
   );
 }
 
-// MSAL Configuration with security best practices
+// MSAL Configuration with security best practices and loop prevention
 export const msalConfig: Configuration = {
   auth: {
     clientId,
     authority: `https://login.microsoftonline.com/${tenantId}`,
     redirectUri,
     postLogoutRedirectUri: redirectUri,
-    navigateToLoginRequestUrl: true,
+    navigateToLoginRequestUrl: false, // Prevents navigation loops
     clientCapabilities: ['CP1'], // Support for Conditional Access
   },
   cache: {
@@ -34,14 +34,14 @@ export const msalConfig: Configuration = {
         }
         switch (level) {
           case LogLevel.Error:
-            console.error(message);
+            console.error('MSAL Error:', message);
             return;
           case LogLevel.Warning:
-            console.warn(message);
+            console.warn('MSAL Warning:', message);
             return;
           case LogLevel.Info:
             if (import.meta.env.DEV) {
-              console.info(message);
+              console.info('MSAL Info:', message);
             }
             return;
           default:
@@ -55,6 +55,7 @@ export const msalConfig: Configuration = {
     iframeHashTimeout: 6000,
     loadFrameTimeout: 0,
     asyncPopups: false,
+    allowRedirectInIframe: false, // Prevent iframe-related loops
   },
   telemetry: {
     application: {
@@ -64,11 +65,12 @@ export const msalConfig: Configuration = {
   },
 };
 
-// Login request configuration
+// Login request configuration with loop prevention
 export const loginRequest = {
   scopes: ['openid', 'profile', 'User.Read'],
   prompt: 'select_account' as const,
   extraScopesToConsent: ['email'],
+  redirectStartPage: window.location.href, // Preserve the original page
 };
 
 // Silent token request configuration
@@ -146,4 +148,27 @@ export const getUserRole = (account: any): AppRole | null => {
   if (userRoles.includes(AppRoles.VIEWER)) return AppRoles.VIEWER;
   
   return null;
+};
+
+// Helper function to check if we're in a redirect callback
+export const isRedirectCallback = (): boolean => {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.has('code') || urlParams.has('error') || window.location.hash.includes('access_token');
+};
+
+// Helper function to get redirect target after login
+export const getRedirectTarget = (defaultPath = '/dashboard'): string => {
+  // Check if there's a saved redirect path
+  const savedPath = sessionStorage.getItem('redirectPath');
+  if (savedPath) {
+    sessionStorage.removeItem('redirectPath');
+    return savedPath;
+  }
+  
+  // If we're coming from a specific page, redirect there
+  if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+    return window.location.pathname;
+  }
+  
+  return defaultPath;
 };
