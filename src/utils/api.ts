@@ -1,0 +1,222 @@
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import { useMsal } from '@azure/msal-react';
+import { apiTokenRequest, protectedResources } from '../config/authConfig';
+import { AccountInfo } from '@azure/msal-browser';
+
+// API Configuration
+const API_CONFIG = {
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '30000'),
+  retries: 3,
+  retryDelay: 1000,
+};
+
+// API Response Types
+export interface ApiResponse<T = any> {
+  data: T;
+  message?: string;
+  status: string;
+  timestamp?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+// Create axios instance
+const createApiInstance = (token?: string): AxiosInstance => {
+  const instance = axios.create({
+    baseURL: API_CONFIG.baseURL,
+    timeout: API_CONFIG.timeout,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  // Request interceptor for logging and token refresh
+  instance.interceptors.request.use(
+    (config) => {
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      return config;
+    },
+    (error) => {
+      console.error('API Request Error:', error);
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor for error handling
+  instance.interceptors.response.use(
+    (response: AxiosResponse) => {
+      console.log(`API Response: ${response.status} ${response.config.url}`);
+      return response;
+    },
+    async (error) => {
+      const { response, config } = error;
+      
+      console.error('API Response Error:', {
+        status: response?.status,
+        url: config?.url,
+        message: response?.data?.detail || error.message,
+      });
+
+      // Handle specific error cases
+      if (response?.status === 401) {
+        console.error('Unauthorized - token may be expired');
+        // Token refresh should be handled by MSAL
+      } else if (response?.status === 403) {
+        console.error('Forbidden - insufficient permissions');
+      } else if (response?.status >= 500) {
+        console.error('Server error - backend may be down');
+      }
+
+      return Promise.reject(error);
+    }
+  );
+
+  return instance;
+};
+
+// Custom hook for authenticated API calls
+export const useAuthenticatedApi = () => {
+  const { instance, accounts } = useMsal();
+  
+  const getApiClient = async (): Promise<AxiosInstance> => {
+    try {
+      const account: AccountInfo = accounts[0];
+      
+      if (!account) {
+        throw new Error('No authenticated account found');
+      }
+
+      // Get access token silently
+      const response = await instance.acquireTokenSilent({
+        ...apiTokenRequest,
+        account,
+      });
+
+      return createApiInstance(response.accessToken);
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      
+      // Fallback: try to get token interactively
+      try {
+        const response = await instance.acquireTokenPopup({
+          ...apiTokenRequest,
+          account: accounts[0],
+        });
+        
+        return createApiInstance(response.accessToken);
+      } catch (interactiveError) {
+        console.error('Interactive token acquisition failed:', interactiveError);
+        throw new Error('Failed to authenticate API requests');
+      }
+    }
+  };
+
+  return { getApiClient };
+};
+
+// Utility functions for common API operations
+export const apiUtils = {
+  // Handle API errors consistently
+  handleApiError: (error: any): string => {
+    if (error.response) {
+      // Server responded with error status
+      const { status, data } = error.response;
+      
+      switch (status) {
+        case 400:
+          return data?.detail || 'Invalid request parameters';
+        case 401:
+          return 'Authentication required. Please log in again.';
+        case 403:
+          return 'You do not have permission to access this resource';
+        case 404:
+          return 'The requested resource was not found';
+        case 429:
+          return 'Too many requests. Please wait and try again.';
+        case 500:
+          return 'Server error. Please try again later.';
+        default:
+          return data?.detail || `Server error (${status})`;
+      }
+    } else if (error.request) {
+      // Network error
+      return 'Network error. Please check your connection and try again.';
+    } else {
+      // Other error
+      return error.message || 'An unexpected error occurred';
+    }
+  },
+
+  // Create query string from parameters
+  createQueryString: (params: Record<string, any>): string => {
+    const searchParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        if (value instanceof Date) {
+          searchParams.append(key, value.toISOString());
+        } else {
+          searchParams.append(key, String(value));
+        }
+      }
+    });
+    
+    return searchParams.toString();
+  },
+
+  // Validate response data
+  validateResponse: <T>(response: AxiosResponse, expectedFields?: (keyof T)[]): T => {
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
+
+    if (expectedFields) {
+      const missing = expectedFields.filter(field => !(field in response.data));
+      if (missing.length > 0) {
+        console.warn('Missing expected fields in response:', missing);
+      }
+    }
+
+    return response.data;
+  },
+
+  // Retry logic for failed requests
+  retryRequest: async <T>(
+    requestFn: () => Promise<T>,
+    maxRetries: number = API_CONFIG.retries,
+    delay: number = API_CONFIG.retryDelay
+  ): Promise<T> => {
+    let lastError: Error;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await requestFn();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Don't retry on client errors (4xx) except 429 (rate limit)
+        if (error.response?.status >= 400 && error.response?.status < 500 && error.response?.status !== 429) {
+          throw error;
+        }
+
+        if (attempt < maxRetries) {
+          console.log(`Request failed, retrying in ${delay}ms (attempt ${attempt}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        }
+      }
+    }
+
+    throw lastError!;
+  },
+};
