@@ -1,5 +1,194 @@
-// TypeScript type definitions for the Tarra Monitoring System
+// Updated sensor data types matching your backend API exactly
 
+// Base interfaces
+export interface BaseTimestamp {
+  timestamp: string;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+// Enums matching your backend exactly
+export enum EventType {
+  VIBRATION = 'vibration',
+  BLAST = 'blast',
+  CONSTRUCTION = 'construction',
+  TRAFFIC = 'traffic',
+  UNKNOWN = 'unknown',
+}
+
+export enum TriggerStatus {
+  YES = 'Yes',
+  NO = 'No',
+}
+
+export enum AlarmStatus {
+  NORMAL = 'Normal',
+  WARNING = 'Warning',
+  CRITICAL = 'Critical',
+}
+
+export enum Status {
+  ONLINE = 'Online',
+  OFFLINE = 'Offline',
+  MAINTENANCE = 'Maintenance',
+}
+
+export enum SensorType {
+  HOSKIN_M80 = 'hoskin_m80',
+  SIXENSE = 'sixense',
+}
+
+// Hoskin M80 sensor data structure (matching your CSV and backend)
+export interface HoskinM80Data extends BaseTimestamp {
+  id: number;
+  instrument_id: string;
+  location: string;
+  channel_1_ppv: number;
+  channel_2_ppv: number;
+  channel_3_ppv: number;
+  channel_4_ppv: number;
+  peak_frequency_hz: number;
+  air_overpressure_db: number;
+  battery_v: number;
+  temperature_c: number;
+  signal_strength: number;
+  event_type: EventType;
+  trigger_level_exceeded: TriggerStatus;
+  waveform_duration_ms: number;
+  pretrigger_ms: number;
+  notes?: string;
+  created_at: string;
+}
+
+// Sixense sensor data structure (matching your CSV and backend)
+export interface SixenseData extends BaseTimestamp {
+  id: number;
+  sensor_id: string;
+  location: string;
+  ppv_x: number;
+  ppv_y: number;
+  ppv_z: number;
+  ppv_resultant: number;
+  acceleration_x: number;
+  acceleration_y: number;
+  acceleration_z: number;
+  displacement_x: number;
+  displacement_y: number;
+  displacement_z: number;
+  frequency_peak: number;
+  temperature: number;
+  battery_voltage: number;
+  status: Status;
+  alarm_status: AlarmStatus;
+  notes?: string;
+  created_at: string;
+}
+
+// API query parameters matching backend
+export interface SensorDataQuery {
+  sensor_id?: string;
+  location?: string;
+  start_date?: string;
+  end_date?: string;
+  event_type?: EventType;
+  alarm_status?: AlarmStatus;
+  limit?: number;
+  offset?: number;
+}
+
+// Dashboard summary data matching backend
+export interface SensorDataSummary {
+  sensor_id: string;
+  sensor_type: string; // "hoskin_m80" or "sixense"
+  location: string;
+  last_reading: string;
+  status: string;
+  alarm_status: string;
+  battery_level: number;
+  temperature: number;
+}
+
+// Analytics data structure
+export interface AnalyticsData {
+  overview: {
+    total_sensors: number;
+    active_sensors: number;
+    total_readings_24h: number;
+    alerts_24h: number;
+  };
+  sensor_health: SensorHealthData[];
+  vibration_trends: VibrationTrendData[];
+  location_summary: LocationSummaryData[];
+  recent_events: RecentEventData[];
+}
+
+export interface SensorHealthData {
+  sensor_id: string;
+  location: string;
+  status: 'healthy' | 'warning' | 'critical';
+  battery_level: number;
+  last_seen: string;
+  uptime_percentage: number;
+}
+
+export interface VibrationTrendData {
+  timestamp: string;
+  location: string;
+  ppv_max: number;
+  frequency: number;
+  event_type: EventType;
+}
+
+export interface LocationSummaryData {
+  location: string;
+  sensor_count: number;
+  avg_ppv: number;
+  max_ppv: number;
+  alert_count: number;
+  status: AlarmStatus;
+}
+
+export interface RecentEventData {
+  timestamp: string;
+  sensor_id: string;
+  location: string;
+  event_type: EventType;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  ppv_value: number;
+  frequency: number;
+  description: string;
+}
+
+// Chart data interfaces
+export interface ChartDataPoint {
+  x: string | number;
+  y: number;
+  label?: string;
+  color?: string;
+}
+
+export interface TimeSeriesData {
+  timestamp: string;
+  value: number;
+  sensor_id?: string;
+  location?: string;
+}
+
+// API response wrapper
+export interface ApiResponse<T = any> {
+  data: T;
+  message?: string;
+  status: 'success' | 'error';
+  timestamp: string;
+}
+
+// Existing types from your current system (keeping compatibility)
 export interface SensorData {
   id: string;
   timestamp: string;
@@ -89,28 +278,6 @@ export interface DashboardLayout {
   config: Record<string, any>;
 }
 
-export interface ApiResponse<T> {
-  data: T;
-  message?: string;
-  success: boolean;
-  timestamp: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  has_more: boolean;
-}
-
-export interface ChartDataPoint {
-  timestamp: string;
-  value: number;
-  sensor_id?: string;
-  label?: string;
-}
-
 export interface SystemStatus {
   status: 'healthy' | 'degraded' | 'critical';
   total_sensors: number;
@@ -133,25 +300,6 @@ export interface ApiError {
   message: string;
   details?: Record<string, any>;
   timestamp: string;
-}
-
-// Form Types
-export interface LoginForm {
-  email: string;
-  password: string;
-  remember_me?: boolean;
-}
-
-export interface SensorConfigForm {
-  name: string;
-  location: string;
-  sensor_type: 'hoskin_m80' | 'sixense_vibration';
-  thresholds: {
-    warning: number;
-    critical: number;
-  };
-  sampling_rate?: number;
-  calibration?: Record<string, number>;
 }
 
 // Chart Configuration Types
@@ -177,29 +325,10 @@ export interface ChartSeries {
   data_field: string;
 }
 
-// Navigation Types
-export interface NavItem {
-  id: string;
-  label: string;
-  path: string;
-  icon: string;
-  roles?: string[];
-  children?: NavItem[];
-}
-
-// Theme Types
-export interface ThemeConfig {
-  mode: 'light' | 'dark';
-  primary_color: string;
-  secondary_color: string;
-  font_family: string;
-  border_radius: number;
-}
-
 // Utility Types
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
-
 export type SortDirection = 'asc' | 'desc';
+export type SensorDataUnion = HoskinM80Data | SixenseData;
 
 export interface SortConfig {
   key: string;
@@ -217,15 +346,4 @@ export interface TableColumn<T = any> {
   filterable?: boolean;
   width?: number;
   render?: (value: any, row: T) => React.ReactNode;
-}
-
-// Environment Variables
-export interface EnvironmentConfig {
-  VITE_API_BASE_URL: string;
-  VITE_AZURE_CLIENT_ID: string;
-  VITE_AZURE_TENANT_ID: string;
-  VITE_AZURE_REDIRECT_URI: string;
-  VITE_WS_ENDPOINT: string;
-  VITE_ENABLE_PWA: boolean;
-  VITE_DEBUG_MODE: boolean;
 }
