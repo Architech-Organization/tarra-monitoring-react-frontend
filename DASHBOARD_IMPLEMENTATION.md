@@ -6,7 +6,7 @@ Your frontend dashboard is now fully implemented and connected to your backend A
 
 - **Real-time sensor data** from both Hoskin M80 and Sixense sensors
 - **Interactive charts** showing vibration trends and sensor health
-- **Live data streaming** via WebSocket connections  
+- **Auto-refreshing data** with configurable intervals
 - **Summary statistics** with sensor counts, alerts, and battery levels
 - **Detailed sensor cards** with status, location, and recent readings
 - **Recent events table** showing the latest sensor activities
@@ -20,7 +20,7 @@ Your frontend dashboard is now fully implemented and connected to your backend A
 - **`src/types/index.ts`**: Updated TypeScript types matching your backend models
 
 ### 2. **Dashboard Components**
-- **`src/pages/Dashboard.tsx`**: Main dashboard with real-time data display
+- **`src/pages/Dashboard.tsx`**: Main dashboard with auto-refreshing data display
 - **`src/components/charts/VibrationTrendChart.tsx`**: Time-series vibration data visualization
 - **`src/components/charts/SensorOverviewChart.tsx`**: Sensor health pie chart
 - **`src/components/tables/LocationSummaryTable.tsx`**: Location-based sensor summaries
@@ -28,7 +28,7 @@ Your frontend dashboard is now fully implemented and connected to your backend A
 
 ### 3. **Key Features**
 - ✅ **Authentication Integration**: Secure API calls using your Azure AD tokens
-- ✅ **Real-time Updates**: WebSocket connection for live sensor data
+- ✅ **Auto-refresh**: Configurable data refresh intervals (1 minute for summary, 5 minutes for analytics)
 - ✅ **Responsive Design**: Works on desktop, tablet, and mobile
 - ✅ **Error Handling**: Graceful error handling and retry logic  
 - ✅ **Loading States**: Professional loading indicators and skeleton screens
@@ -43,8 +43,6 @@ Your dashboard connects to these backend endpoints:
 - `GET /api/v1/sensors/hoskin-m80/data` - Hoskin M80 sensor readings
 - `GET /api/v1/sensors/sixense/data` - Sixense sensor readings
 - `GET /api/v1/sensors/analytics` - Dashboard analytics data
-- `POST /api/v1/sensors/live-stream/start` - Start live data streaming
-- `WebSocket /ws` - Real-time sensor data updates
 
 ## 📊 Data Sources
 
@@ -85,8 +83,8 @@ npm run dev
 
 ### **Main Dashboard View**
 - **Summary Cards**: Total sensors, online sensors, active alerts, average battery level
-- **Live Status Indicator**: Shows WebSocket connection and live streaming status
-- **Refresh Controls**: Manual refresh and auto-refresh intervals
+- **Auto-refresh Indicator**: Shows data refresh status and intervals
+- **Manual Refresh**: Manual refresh button for immediate data updates
 
 ### **Sensor Status Grid**
 Each sensor card shows:
@@ -102,11 +100,11 @@ Each sensor card shows:
 - **Location Summary**: Table with sensor counts, PPV statistics, and alert counts
 - **Recent Events**: Table showing latest sensor activities and alerts
 
-### **Real-time Features**
-- **WebSocket Connection**: Live data streaming from backend
-- **Auto-refresh**: Configurable refresh intervals for different data types
-- **Live Indicators**: Visual indicators showing connection status
-- **Real-time Updates**: Charts and tables update automatically with new data
+### **Data Refresh Strategy**
+- **Sensor Summary**: Auto-refreshes every 1 minute
+- **Analytics Data**: Auto-refreshes every 5 minutes
+- **Location Data**: Cached for 5 minutes
+- **Manual Refresh**: Immediately fetches fresh data from all endpoints
 
 ## 🛠️ Troubleshooting
 
@@ -146,22 +144,22 @@ Each sensor card shows:
 - Verify backend CORS settings allow your frontend domain
 - Check `allowed_origins` in backend configuration
 
-**WebSocket Connection Failed**:
-- Verify backend WebSocket endpoint is running
-- Check firewall/proxy settings
-- Confirm WebSocket URL in environment variables
-
 **No Data Displayed**:
 - Check if backend has sensor data in database
 - Verify API endpoints return expected data format
 - Check browser console for JavaScript errors
+
+**Slow Performance**:
+- Check network requests for large payloads
+- Verify refresh intervals are appropriate
+- Monitor React Query cache performance
 
 ## 🔍 Monitoring and Debugging
 
 ### **Browser Debug Tools**
 - **AuthDebugger**: Shows authentication status and render counts (development only)
 - **React Query DevTools**: Inspect API call cache and status  
-- **Console Logging**: Detailed logging for API calls and WebSocket events
+- **Console Logging**: Detailed logging for API calls and data fetching
 
 ### **Performance Monitoring**
 - Data caching with React Query reduces API calls
@@ -178,7 +176,7 @@ Each sensor card shows:
 4. **Mobile App**: Create React Native mobile version
 5. **Advanced Analytics**: Add trend analysis and predictive insights
 6. **User Preferences**: Save dashboard layouts and preferences
-7. **Notification System**: Email/SMS alerts for critical events
+7. **Push Notifications**: Browser notifications for critical events
 
 ### **Performance Optimizations:**
 1. **Data Virtualization**: For large sensor lists
@@ -211,6 +209,26 @@ Each sensor card shows:
 - **Server State**: React Query for API data caching and synchronization
 - **Client State**: React useState and useContext for local component state
 - **Authentication State**: Azure MSAL React integration
-- **WebSocket State**: Custom hooks for real-time data management
+- **Auto-refresh**: React Query's refetchInterval for automatic data updates
+
+## ⚡ Data Refresh Strategy
+
+The dashboard uses an intelligent refresh strategy:
+
+### **Automatic Refresh**
+- **High Priority Data** (sensor summary): 60 seconds
+- **Medium Priority Data** (analytics): 5 minutes  
+- **Low Priority Data** (locations): 5 minutes (cached)
+
+### **Manual Refresh**
+- **Immediate**: Manual refresh button fetches all data immediately
+- **Smart Caching**: React Query prevents unnecessary duplicate requests
+- **Error Recovery**: Failed requests are automatically retried with exponential backoff
+
+### **Performance Benefits**
+- Reduces server load with intelligent caching
+- Provides fresh data without overwhelming the backend
+- Maintains good user experience with loading states
+- Efficient bandwidth usage with cached responses
 
 Your dashboard is now fully operational and ready for production deployment! 🚀
