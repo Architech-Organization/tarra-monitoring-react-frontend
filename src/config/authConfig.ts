@@ -73,16 +73,16 @@ export const loginRequest = {
   redirectStartPage: window.location.href, // Preserve the original page
 };
 
-// Silent token request configuration
+// Silent token request configuration - using basic Microsoft Graph scopes
 export const silentRequest = {
   scopes: ['openid', 'profile', 'User.Read'],
   account: null as any, // Will be set dynamically
   forceRefresh: false,
 };
 
-// API access token request
+// API access token request - simplified to use basic scopes first
 export const apiTokenRequest = {
-  scopes: [`api://${clientId}/access_as_user`],
+  scopes: ['openid', 'profile', 'User.Read'], // Start with basic scopes that always work
   account: null as any, // Will be set dynamically
 };
 
@@ -96,7 +96,7 @@ export const graphConfig = {
 export const protectedResources = {
   apiTarra: {
     endpoint: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-    scopes: [`api://${clientId}/access_as_user`],
+    scopes: ['openid', 'profile', 'User.Read'], // Using basic scopes for now
   },
   graphMe: {
     endpoint: 'https://graph.microsoft.com/v1.0/me',
@@ -171,4 +171,14 @@ export const getRedirectTarget = (defaultPath = '/dashboard'): string => {
   }
   
   return defaultPath;
+};
+
+// Helper to create API-specific token request
+export const createApiTokenRequest = (account: any) => {
+  // For now, use basic scopes. Later you can add custom API scopes here
+  return {
+    scopes: ['openid', 'profile', 'User.Read'],
+    account,
+    forceRefresh: false,
+  };
 };
