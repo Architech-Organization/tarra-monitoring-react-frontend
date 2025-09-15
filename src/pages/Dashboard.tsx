@@ -99,11 +99,22 @@ const Dashboard: React.FC = () => {
         <Box sx={{ p: 3 }}>
           <Alert severity="error">
             <AlertTitle>Failed to Load Dashboard Data</AlertTitle>
-            {error?.message || 'An unexpected error occurred while loading the dashboard.'}
+            {error?.message || 'Cannot connect to backend API. Please check that your backend server is running on port 8000.'}
             <Box sx={{ mt: 2 }}>
               <Button variant="outlined" onClick={handleRefresh} startIcon={<RefreshIcon />}>
                 Try Again
               </Button>
+              <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.100', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Troubleshooting Steps:
+                </Typography>
+                <Typography variant="body2" component="ul" sx={{ pl: 2 }}>
+                  <li>Make sure your Python backend is running on <strong>http://localhost:8000</strong></li>
+                  <li>Check that CORS is enabled in your backend for localhost:5173</li>
+                  <li>Verify your backend API endpoints are working at <strong>http://localhost:8000/docs</strong></li>
+                  <li>Check the browser Network tab for specific API error details</li>
+                </Typography>
+              </Box>
             </Box>
           </Alert>
         </Box>
@@ -137,12 +148,24 @@ const Dashboard: React.FC = () => {
               />
             </Tooltip>
 
-            {/* Manual Refresh Button */}
-            <Tooltip title="Refresh Data">
-              <IconButton onClick={handleRefresh} disabled={isLoading}>
-                {isLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
-              </IconButton>
-            </Tooltip>
+            {/* Manual Refresh Button - Fixed tooltip for disabled button */}
+            {isLoading ? (
+              <Box sx={{ display: 'inline-flex' }}>
+                <Tooltip title="Refreshing data...">
+                  <span>
+                    <IconButton disabled>
+                      <CircularProgress size={20} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
+            ) : (
+              <Tooltip title="Refresh Data">
+                <IconButton onClick={handleRefresh}>
+                  <RefreshIcon />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
         </Box>
 
