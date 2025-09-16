@@ -9,13 +9,9 @@ import { Layout } from './components/Layout';
 import { LoadingScreen } from './components/LoadingScreen';
 import { AuthWrapper } from './components/AuthWrapper';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AuthDebugger } from './components/AuthDebugger';
 
 // Lazy load pages for better performance
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const SensorManagement = React.lazy(() => import('./pages/SensorManagement'));
-const AlertsPage = React.lazy(() => import('./pages/AlertsPage'));
-const AnalyticsPage = React.lazy(() => import('./pages/AnalyticsPage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
@@ -27,9 +23,6 @@ export const App: React.FC = () => {
 
   return (
     <>
-      {/* Debug component - only shows in development */}
-      <AuthDebugger enabled={import.meta.env.DEV} />
-      
       {/* Global SEO and Security Headers */}
       <Helmet
         titleTemplate="%s | Tarra Monitoring System"
@@ -111,16 +104,7 @@ export const App: React.FC = () => {
               
               {/* Dashboard */}
               <Route path="dashboard" element={<Dashboard />} />
-              
-              {/* Sensor Management */}
-              <Route path="sensors" element={<SensorManagement />} />
-              
-              {/* Alerts */}
-              <Route path="alerts" element={<AlertsPage />} />
-              
-              {/* Analytics */}
-              <Route path="analytics" element={<AnalyticsPage />} />
-              
+
               {/* Settings */}
               <Route path="settings" element={<SettingsPage />} />
             </Route>

@@ -5,6 +5,10 @@ import {
   Card,
   CardContent,
   Typography,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
   Alert,
   AlertTitle,
   Button,
@@ -17,6 +21,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -24,33 +29,41 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
-  Battery3Bar as BatteryIcon,
   Sensors as SensorsIcon,
   LocationOn as LocationIcon,
   Timeline as TimelineIcon,
   Visibility as VisibilityIcon,
+  Speed as SpeedIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import { Helmet } from 'react-helmet-async';
 import { format } from 'date-fns';
 
-import { useDashboardData } from '../hooks/useSensorData';
+import { useDashboardData, useAnalyticsData } from '../hooks/useSensorData';
 import { SensorDataSummary, AlarmStatus, Status } from '../types';
-import { SensorOverviewChart } from '../components/charts/SensorOverviewChart';
-import { VibrationTrendChart } from '../components/charts/VibrationTrendChart';
-import { LocationSummaryTable } from '../components/tables/LocationSummaryTable';
-import { RecentEventsTable } from '../components/tables/RecentEventsTable';
+import { ApiDataCard } from '../components/ApiDataCard';
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
   const [selectedSensor, setSelectedSensor] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [timeRange, setTimeRange] = useState<number>(24);
 
-  // Fetch dashboard data
-  const { summary, analytics, locations, isLoading, isError, error, refetch } = useDashboardData();
+  // Fetch dashboard data (keep for sensor details)
+  const { summary, isLoading: summaryLoading, isError: summaryError, error: summaryErrorMsg, refetch: refetchSummary } = useDashboardData();
+
+  // Fetch analytics data (main dashboard data)
+  const { data: analytics, isLoading: analyticsLoading, isError: analyticsError, error: analyticsErrorMsg, refetch: refetchAnalytics } = useAnalyticsData(timeRange);
+
+  // Combined loading and error states
+  const isLoading = summaryLoading || analyticsLoading;
+  const isError = summaryError || analyticsError;
+  const error = summaryErrorMsg || analyticsErrorMsg;
 
   // Handle refresh
   const handleRefresh = () => {
-    refetch();
+    refetchSummary();
+    refetchAnalytics();
   };
 
   // Get status color and icon
@@ -73,22 +86,6 @@ const Dashboard: React.FC = () => {
     return { color: 'success', icon: <CheckCircleIcon />, text: 'Normal' };
   };
 
-  // Calculate summary statistics
-  const summaryStats = React.useMemo(() => {
-    if (!summary.data || !analytics.data) {
-      return { totalSensors: 0, onlineSensors: 0, alertSensors: 0, avgBattery: 0 };
-    }
-
-    const totalSensors = summary.data.length;
-    const onlineSensors = summary.data.filter(sensor => sensor.status === Status.ONLINE).length;
-    const alertSensors = summary.data.filter(sensor => 
-      sensor.alarm_status === AlarmStatus.WARNING || sensor.alarm_status === AlarmStatus.CRITICAL
-    ).length;
-    const avgBattery = totalSensors > 0 ? 
-      summary.data.reduce((sum, sensor) => sum + sensor.battery_level, 0) / totalSensors : 0;
-
-    return { totalSensors, onlineSensors, alertSensors, avgBattery };
-  }, [summary.data, analytics.data]);
 
   if (isError) {
     return (
@@ -109,9 +106,9 @@ const Dashboard: React.FC = () => {
                   Troubleshooting Steps:
                 </Typography>
                 <Typography variant="body2" component="ul" sx={{ pl: 2 }}>
-                  <li>Make sure your Python backend is running on <strong>http://localhost:8000</strong></li>
-                  <li>Check that CORS is enabled in your backend for localhost:5173</li>
-                  <li>Verify your backend API endpoints are working at <strong>http://localhost:8000/docs</strong></li>
+                  <li>Make sure your Python backend is running on <strong>http://localhost:8002</strong></li>
+                  <li>Check that CORS is enabled in your backend for localhost:3001</li>
+                  <li>Verify your backend API endpoints are working at <strong>http://localhost:8002/docs</strong></li>
                   <li>Check the browser Network tab for specific API error details</li>
                 </Typography>
               </Box>
@@ -131,12 +128,28 @@ const Dashboard: React.FC = () => {
       
       <Box sx={{ p: 3 }}>
         {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" component="h1" gutterBottom>
             Monitoring Dashboard
           </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {/* Time Range Selector */}
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Time Range</InputLabel>
+              <Select
+                value={timeRange}
+                label="Time Range"
+                onChange={(e) => setTimeRange(Number(e.target.value))}
+              >
+                <MenuItem value={1}>Last Hour</MenuItem>
+                <MenuItem value={6}>Last 6 Hours</MenuItem>
+                <MenuItem value={24}>Last 24 Hours</MenuItem>
+                <MenuItem value={168}>Last Week</MenuItem>
+                <MenuItem value={720}>Last Month</MenuItem>
+              </Select>
+            </FormControl>
+
             {/* Auto-refresh indicator */}
             <Tooltip title="Data refreshes automatically every minute">
               <Chip
@@ -148,7 +161,7 @@ const Dashboard: React.FC = () => {
               />
             </Tooltip>
 
-            {/* Manual Refresh Button - Fixed tooltip for disabled button */}
+            {/* Manual Refresh Button */}
             {isLoading ? (
               <Box sx={{ display: 'inline-flex' }}>
                 <Tooltip title="Refreshing data...">
@@ -169,223 +182,186 @@ const Dashboard: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Summary Cards */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <SensorsIcon color="primary" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {isLoading ? <CircularProgress size={20} /> : summaryStats.totalSensors}
-                    </Typography>
-                    <Typography color="text.secondary" gutterBottom>
-                      Total Sensors
-                    </Typography>
+        {/* Analytics Overview Cards */}
+        {analytics?.summary && (
+          <Grid container spacing={3} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <SensorsIcon color="primary" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {isLoading ? <CircularProgress size={20} /> : analytics.summary.sensor_count}
+                      </Typography>
+                      <Typography color="text.secondary" gutterBottom>
+                        Total Sensors
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <CheckCircleIcon color="success" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {isLoading ? <CircularProgress size={20} /> : summaryStats.onlineSensors}
-                    </Typography>
-                    <Typography color="text.secondary" gutterBottom>
-                      Online Sensors
-                    </Typography>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <AssessmentIcon color="info" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {isLoading ? <CircularProgress size={20} /> : analytics.summary.total_readings.toLocaleString()}
+                      </Typography>
+                      <Typography color="text.secondary" gutterBottom>
+                        Total Readings ({timeRange}h)
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <WarningIcon color="warning" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {isLoading ? <CircularProgress size={20} /> : summaryStats.alertSensors}
-                    </Typography>
-                    <Typography color="text.secondary" gutterBottom>
-                      Active Alerts
-                    </Typography>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <SpeedIcon color="success" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {isLoading ? <CircularProgress size={20} /> : analytics.hoskin_m80?.readings_count || 0}
+                      </Typography>
+                      <Typography color="text.secondary" gutterBottom>
+                        Hoskin M80 Readings
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <BatteryIcon color="info" sx={{ fontSize: 40 }} />
-                  <Box>
-                    <Typography variant="h4" component="div">
-                      {isLoading ? <CircularProgress size={20} /> : `${Math.round(summaryStats.avgBattery)}%`}
-                    </Typography>
-                    <Typography color="text.secondary" gutterBottom>
-                      Avg Battery
-                    </Typography>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <WarningIcon color="warning" sx={{ fontSize: 40 }} />
+                    <Box>
+                      <Typography variant="h4" component="div">
+                        {isLoading ? <CircularProgress size={20} /> : (analytics.hoskin_m80?.threshold_exceedances || 0) + (analytics.sixense?.warning_alerts || 0) + (analytics.sixense?.critical_alerts || 0)}
+                      </Typography>
+                      <Typography color="text.secondary" gutterBottom>
+                        Total Alerts ({timeRange}h)
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-        </Grid>
-
-        {/* Sensor Status Grid */}
-        {!isLoading && summary.data && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SensorsIcon />
-                Sensor Status Overview
-              </Typography>
-              
-              <Grid container spacing={2}>
-                {summary.data.map((sensor) => {
-                  const statusDisplay = getStatusDisplay(sensor.status, sensor.alarm_status);
-                  
-                  return (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={sensor.sensor_id}>
-                      <Card 
-                        variant="outlined"
-                        sx={{ 
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease-in-out',
-                          '&:hover': {
-                            boxShadow: 2,
-                            transform: 'translateY(-2px)',
-                          },
-                        }}
-                        onClick={() => {
-                          setSelectedSensor(sensor.sensor_id);
-                          setShowDetails(true);
-                        }}
-                      >
-                        <CardContent sx={{ pb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'flex-start', mb: 1 }}>
-                            <Typography variant="subtitle2" noWrap>
-                              {sensor.sensor_id}
-                            </Typography>
-                            <Chip
-                              icon={statusDisplay.icon}
-                              label={statusDisplay.text}
-                              color={statusDisplay.color}
-                              size="small"
-                            />
-                          </Box>
-                          
-                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                            <LocationIcon sx={{ fontSize: 16 }} />
-                            {sensor.location}
-                          </Typography>
-                          
-                          <Box sx={{ display: 'flex', justifyContent: 'between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="body2">
-                              Battery: {Math.round(sensor.battery_level)}%
-                            </Typography>
-                            <Typography variant="body2">
-                              {Math.round(sensor.temperature)}°C
-                            </Typography>
-                          </Box>
-                          
-                          <Typography variant="caption" color="text.secondary">
-                            Last: {format(new Date(sensor.last_reading), 'MMM dd, HH:mm')}
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </CardContent>
-          </Card>
         )}
 
-        {/* Charts and Analytics */}
-        <Grid container spacing={3}>
-          {/* Vibration Trends Chart */}
-          <Grid item xs={12} lg={8}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <TimelineIcon />
-                  Vibration Trends (24h)
-                </Typography>
-                {analytics.data?.vibration_trends ? (
-                  <VibrationTrendChart data={analytics.data.vibration_trends} />
-                ) : (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-                    {isLoading ? <CircularProgress /> : <Typography>No trend data available</Typography>}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
 
-          {/* Sensor Health Overview */}
-          <Grid item xs={12} lg={4}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <TrendingUpIcon />
-                  Sensor Health
-                </Typography>
-                {analytics.data?.sensor_health ? (
-                  <SensorOverviewChart data={analytics.data.sensor_health} />
-                ) : (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
-                    {isLoading ? <CircularProgress /> : <Typography>No health data available</Typography>}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Location Summary */}
+        {/* Analytics Overview */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          {/* Hoskin M80 Analytics */}
           <Grid item xs={12} lg={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <LocationIcon />
-                  Location Summary
+                  <SpeedIcon />
+                  Hoskin M80 Analytics
                 </Typography>
-                {analytics.data?.location_summary ? (
-                  <LocationSummaryTable data={analytics.data.location_summary} />
+                {analytics?.hoskin_m80 ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Max PPV:</Typography>
+                      <Chip label={`${analytics.hoskin_m80.max_ppv} mm/s`} color="warning" size="small" />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Average PPV:</Typography>
+                      <Typography variant="body2">{analytics.hoskin_m80.avg_ppv.toFixed(2)} mm/s</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Threshold Exceedances:</Typography>
+                      <Chip
+                        label={analytics.hoskin_m80.threshold_exceedances}
+                        color={analytics.hoskin_m80.threshold_exceedances > 0 ? 'error' : 'success'}
+                        size="small"
+                      />
+                    </Box>
+
+                    <Divider sx={{ my: 1 }} />
+
+                    <Typography variant="subtitle2" gutterBottom>Event Types:</Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {Object.entries(analytics.hoskin_m80.event_types).map(([type, count]) => (
+                        <Chip
+                          key={type}
+                          label={`${type}: ${count}`}
+                          size="small"
+                          variant="outlined"
+                          color={type === 'blast' ? 'error' : type === 'construction' ? 'warning' : 'default'}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
                 ) : (
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                    {isLoading ? <CircularProgress /> : <Typography>No location data available</Typography>}
+                    {isLoading ? <CircularProgress /> : <Typography>No Hoskin M80 data available</Typography>}
                   </Box>
                 )}
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Recent Events */}
+          {/* Sixense Analytics */}
           <Grid item xs={12} lg={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <VisibilityIcon />
-                  Recent Events
+                  <SensorsIcon />
+                  Sixense Analytics
                 </Typography>
-                {analytics.data?.recent_events ? (
-                  <RecentEventsTable data={analytics.data.recent_events} />
+                {analytics?.sixense ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Max PPV:</Typography>
+                      <Chip label={`${analytics.sixense.max_ppv} mm/s`} color="info" size="small" />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Average PPV:</Typography>
+                      <Typography variant="body2">{analytics.sixense.avg_ppv.toFixed(2)} mm/s</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Critical Alerts:</Typography>
+                      <Chip
+                        label={analytics.sixense.critical_alerts}
+                        color={analytics.sixense.critical_alerts > 0 ? 'error' : 'success'}
+                        size="small"
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Warning Alerts:</Typography>
+                      <Chip
+                        label={analytics.sixense.warning_alerts}
+                        color={analytics.sixense.warning_alerts > 0 ? 'warning' : 'success'}
+                        size="small"
+                      />
+                    </Box>
+
+                    <Divider sx={{ my: 1 }} />
+
+                    <Box sx={{ textAlign: 'center', p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="h3" color="primary">
+                        {analytics.sixense.readings_count}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Readings in {timeRange}h
+                      </Typography>
+                    </Box>
+                  </Box>
                 ) : (
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
-                    {isLoading ? <CircularProgress /> : <Typography>No recent events</Typography>}
+                    {isLoading ? <CircularProgress /> : <Typography>No Sixense data available</Typography>}
                   </Box>
                 )}
               </CardContent>
@@ -404,7 +380,7 @@ const Dashboard: React.FC = () => {
             Sensor Details: {selectedSensor}
           </DialogTitle>
           <DialogContent>
-            {selectedSensor && summary.data && (
+            {selectedSensor && summary?.data && (
               <Box sx={{ pt: 1 }}>
                 <Typography>
                   Detailed information for sensor {selectedSensor} would be displayed here.

@@ -24,7 +24,6 @@
     "noImplicitOverride": true,
     "noImplicitAny": true,
     "noImplicitThis": true,
-    "noImplicitReturns": true,
     "exactOptionalPropertyTypes": true,
     
     /* Security & Performance */
@@ -65,8 +64,5 @@
     "dist",
     "build",
     "coverage"
-  ],
-  "references": [
-    { "path": "./tsconfig.node.json" }
   ]
 }

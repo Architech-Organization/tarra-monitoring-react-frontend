@@ -103,10 +103,13 @@ export const useAuthenticatedApi = () => {
 
       // Try to get access token silently with basic scopes
       const tokenRequest = createApiTokenRequest(account);
-      
+
       try {
         const response = await instance.acquireTokenSilent(tokenRequest);
         console.log('Successfully acquired token silently');
+        console.log('Token scopes:', response.scopes);
+        console.log('Token audience:', response.account?.idTokenClaims?.aud);
+        console.log('Token first 20 chars:', response.accessToken.substring(0, 20) + '...');
         return createApiInstance(response.accessToken);
       } catch (silentError) {
         console.warn('Silent token acquisition failed, trying interactive:', silentError);

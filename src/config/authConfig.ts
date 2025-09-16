@@ -80,9 +80,9 @@ export const silentRequest = {
   forceRefresh: false,
 };
 
-// API access token request - simplified to use basic scopes first
+// API access token request - using custom API scopes
 export const apiTokenRequest = {
-  scopes: ['openid', 'profile', 'User.Read'], // Start with basic scopes that always work
+  scopes: [`api://${clientId}/access_as_user`], // Custom API scope
   account: null as any, // Will be set dynamically
 };
 
@@ -96,7 +96,7 @@ export const graphConfig = {
 export const protectedResources = {
   apiTarra: {
     endpoint: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
-    scopes: ['openid', 'profile', 'User.Read'], // Using basic scopes for now
+    scopes: [`api://${clientId}/access_as_user`], // Custom API scope
   },
   graphMe: {
     endpoint: 'https://graph.microsoft.com/v1.0/me',
@@ -175,9 +175,8 @@ export const getRedirectTarget = (defaultPath = '/dashboard'): string => {
 
 // Helper to create API-specific token request
 export const createApiTokenRequest = (account: any) => {
-  // For now, use basic scopes. Later you can add custom API scopes here
   return {
-    scopes: ['openid', 'profile', 'User.Read'],
+    scopes: [`api://${clientId}/access_as_user`], // Custom API scope
     account,
     forceRefresh: false,
   };
