@@ -6,35 +6,33 @@
 [![Material-UI](https://img.shields.io/badge/MUI-5.16.7-blue.svg)](https://mui.com/)
 [![Azure AD](https://img.shields.io/badge/Azure%20AD-Integrated-blue.svg)](https://azure.microsoft.com/en-us/services/active-directory/)
 
-Enterprise-grade React frontend for the Tarra vibration monitoring system with real-time analytics, Azure AD authentication, and comprehensive security features.
+Streamlined React frontend for the Tarra vibration monitoring system featuring a unified analytics dashboard with Azure AD authentication and real-time sensor data visualization.
 
 ## 🚀 Features
 
 - **🔐 Security First**: Built with OWASP security best practices
 - **🔑 Azure AD Integration**: Enterprise-grade authentication and authorization
-- **📊 Real-time Monitoring**: Live sensor data visualization and alerts
-- **📱 Progressive Web App**: Offline support and mobile-responsive design
+- **📊 Unified Dashboard**: Single analytics-focused dashboard with real-time sensor data
+- **📱 Responsive Design**: Mobile-friendly interface with modern Material-UI components
 - **♿ Accessibility**: WCAG 2.1 AA compliant with full keyboard navigation
-- **🎨 Modern UI**: Material-UI design system with dark/light themes
-- **📈 Advanced Analytics**: Interactive charts and data visualization
-- **🔄 Real-time Updates**: WebSocket connections for live data
-- **⚡ Performance**: Code splitting, lazy loading, and optimized builds
+- **🎨 Modern UI**: Clean Material-UI design with gradient styling and user-friendly navigation
+- **📈 Analytics Integration**: Live PPV data, event tracking, and sensor health monitoring
+- **🔄 Time Range Selection**: Flexible data viewing with configurable time ranges
+- **⚡ Performance**: Optimized React 18 with TypeScript and Vite
 - **🧪 Testing**: Comprehensive test coverage with Vitest and Testing Library
 
 ## 🏗️ Architecture
 
 ```
 src/
-├── components/          # Reusable UI components
-├── pages/              # Route-level page components
-├── hooks/              # Custom React hooks
-├── services/           # API and external service integrations
-├── store/              # State management (Zustand)
-├── utils/              # Utility functions and helpers
+├── components/          # Reusable UI components (Layout, ApiDataCard, etc.)
+├── pages/              # Dashboard, Settings, Login, and error pages
+├── hooks/              # Custom React hooks for data fetching
+├── utils/              # API utilities and helper functions
 ├── types/              # TypeScript type definitions
-├── config/             # Configuration files
-├── assets/             # Static assets
-└── styles/             # Global styles and themes
+├── config/             # Azure AD and application configuration
+├── assets/             # Static assets and icons
+└── styles/             # Global CSS and Material-UI theme
 ```
 
 ## 🚦 Getting Started
@@ -67,8 +65,9 @@ src/
    ```env
    VITE_AZURE_CLIENT_ID=your-azure-client-id
    VITE_AZURE_TENANT_ID=your-azure-tenant-id
-   VITE_AZURE_REDIRECT_URI=http://localhost:3000
-   VITE_API_BASE_URL=http://localhost:8000
+   VITE_AZURE_REDIRECT_URI=http://localhost:3001
+   VITE_API_BASE_URL=http://localhost:8002
+   VITE_DEV_PORT=3001
    ```
 
 4. **Start the development server**
@@ -77,7 +76,7 @@ src/
    ```
 
 5. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+   Navigate to [http://localhost:3001](http://localhost:3001)
 
 ## 🔧 Configuration
 
@@ -91,7 +90,12 @@ src/
 
 ### API Integration
 
-The frontend connects to the Tarra Monitoring Backend API. Ensure the backend is running and accessible at the configured `VITE_API_BASE_URL`.
+The frontend connects to the Tarra Monitoring Backend API running on port 8002. The application uses custom Azure AD API scopes for authentication and features:
+
+- **Dashboard Analytics**: Real-time sensor data aggregation
+- **Hoskin M80 Integration**: Multi-channel vibration monitoring
+- **Sixense Integration**: 3-axis acceleration and displacement data
+- **Time Range Filtering**: Configurable data time windows (1 hour to 1 month)
 
 ## 📋 Available Scripts
 
@@ -135,6 +139,23 @@ The frontend connects to the Tarra Monitoring Backend API. Ensure the backend is
 - Safari 14+
 - Edge 90+
 
+## 📊 Current Application Structure
+
+The application is streamlined into a single, powerful dashboard featuring:
+
+### Main Dashboard
+- **Analytics Overview Cards**: Total sensors, readings count, and alert summaries
+- **Hoskin M80 Analytics**: PPV measurements, event type breakdown, threshold monitoring
+- **Sixense Analytics**: Multi-axis vibration data, alert tracking, reading statistics
+- **Time Range Controls**: Flexible data windows (1 hour to 1 month)
+- **Real-time Updates**: Automatic data refresh every minute
+- **User Management**: Azure AD profile integration with logout functionality
+
+### Additional Pages
+- **Settings**: User preferences and configuration
+- **Authentication**: Azure AD login/logout flow
+- **Error Handling**: NotFound and Unauthorized pages
+
 ## 📊 Monitoring Data Sources
 
 The application supports multiple sensor types:
@@ -162,10 +183,10 @@ The application uses Material-UI's theming system with:
 
 ## 🔄 State Management
 
-- **React Query**: Server state management and caching
-- **Zustand**: Client-side state management
-- **Context API**: Theme and authentication state
-- **Local Storage**: User preferences persistence
+- **React Query**: Server state management and caching for analytics data
+- **Azure MSAL**: Authentication state management
+- **React Context**: Theme and user session state
+- **Local Storage**: Time range preferences and user settings
 
 ## 📱 Progressive Web App
 
@@ -207,7 +228,7 @@ npm run preview
 docker build -t tarra-monitoring-frontend .
 
 # Run the container
-docker run -p 3000:3000 tarra-monitoring-frontend
+docker run -p 3001:3001 tarra-monitoring-frontend
 ```
 
 ### Environment-Specific Builds
